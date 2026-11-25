@@ -1,68 +1,31 @@
 <!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>MeteoMapa: clima ao vivo no mapa</title>
+<title>MeteoMapa | Meteorologia interativa</title><meta name="description" content="Mapa meteorológico interativo com vento, temperatura, chuva, nuvens, pressão, radar e previsão do tempo.">
 <meta name="theme-color" content="#0b1020">
 <script>try{var t=JSON.parse(localStorage.getItem("meteomapa-v1")).theme;if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌀</text></svg>">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
-:root{--bg:#e9eef6;--g:rgba(255,255,255,.92);--ink:#14213d;--mut:#55617e;--acc:#b45309;--accink:#fff;--line:rgba(20,33,61,.2);--f1:rgba(20,33,61,.07);--f2:rgba(20,33,61,.15);--dlg:#fff;--back:rgba(20,33,61,.45);--link:#0b3d91;--bad:#b91c1c;--good:#15803d;color-scheme:light}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0b1020;--g:rgba(14,20,36,.86);--ink:#eef2fb;--mut:#a5b1cc;--acc:#f5b301;--accink:#1a1300;--line:rgba(255,255,255,.16);--f1:rgba(255,255,255,.08);--f2:rgba(255,255,255,.16);--dlg:#141b30;--back:rgba(0,0,0,.6);--link:#cfe0ff;--bad:#ff8f8f;--good:#7ee2a0;color-scheme:dark}}
-:root[data-theme=dark]{--bg:#0b1020;--g:rgba(14,20,36,.86);--ink:#eef2fb;--mut:#a5b1cc;--acc:#f5b301;--accink:#1a1300;--line:rgba(255,255,255,.16);--f1:rgba(255,255,255,.08);--f2:rgba(255,255,255,.16);--dlg:#141b30;--back:rgba(0,0,0,.6);--link:#cfe0ff;--bad:#ff8f8f;--good:#7ee2a0;color-scheme:dark}
-:root[data-theme=light]{--bg:#e9eef6;--g:rgba(255,255,255,.92);--ink:#14213d;--mut:#55617e;--acc:#b45309;--accink:#fff;--line:rgba(20,33,61,.2);--f1:rgba(20,33,61,.07);--f2:rgba(20,33,61,.15);--dlg:#fff;--back:rgba(20,33,61,.45);--link:#0b3d91;--bad:#b91c1c;--good:#15803d;color-scheme:light}
-*{box-sizing:border-box}html,body{height:100%;margin:0}body{background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,"Segoe UI",sans-serif;overflow:hidden}
-#map{position:absolute;inset:0;background:var(--bg)}
-#fld,#prt{position:absolute;left:0;top:0;pointer-events:none;z-index:450}#fld{filter:blur(8px);transition:opacity .3s}
-.ui,#top,#panel,#menu,#leg,#bar{position:absolute;z-index:1000}
-#top{top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;gap:6px;align-items:center;background:var(--g);border:1px solid var(--line);border-radius:99px;padding:5px 8px}
-.logo{padding:0 8px;color:var(--acc)}button{font:inherit;color:var(--ink);background:var(--f1);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
-button:hover{background:var(--f2)}button.on,button.p{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:600}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-#panel{top:calc(8px + env(safe-area-inset-top,0px));left:8px;width:310px;max-height:calc(100% - 90px);overflow:auto;background:var(--g);border:1px solid var(--line);border-radius:12px;padding:10px}
-.srch{display:flex;gap:6px}input{font:inherit;color:var(--ink);background:var(--f1);border:1px solid var(--line);border-radius:8px;padding:7px 10px;width:100%}
-#res{list-style:none;margin:6px 0 0;padding:0}#res li button{width:100%;text-align:left;margin-top:3px}
-#favs{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}#favs button{font-size:.8rem;padding:2px 9px;border-radius:99px}
-.big{font-size:2.6rem;font-weight:300;line-height:1}.mut{color:var(--mut);font-size:.85rem}
-#days{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px}.dc{background:var(--f1);border-radius:8px;padding:5px;text-align:center;font-size:.78rem}.dc b{display:block}
-#menu{right:8px;top:calc(8px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:5px;align-items:flex-end}
-#menu button{background:var(--g)}#menu button:hover{border-color:var(--acc)}#menu button.on,#menu button.on:hover{background:var(--acc);color:var(--accink);border-color:var(--acc)}#leg{left:8px;bottom:64px;width:min(340px,60vw);background:var(--g);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:.78rem}
-#lgb{height:10px;border-radius:5px;margin:3px 0}#lgl{display:flex;justify-content:space-between;color:var(--mut)}
-#bar{left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;align-items:center;background:var(--g);border:1px solid var(--line);border-radius:12px;padding:6px 10px;flex-wrap:wrap}
-#sl{flex:1;min-width:140px;accent-color:var(--acc);padding:0}#tl{min-width:130px;font-variant-numeric:tabular-nums}#dbtn{display:flex;gap:3px;flex-wrap:wrap}#dbtn button{padding:3px 8px;font-size:.8rem}
-#toast{position:absolute;z-index:1100;left:50%;bottom:90px;transform:translateX(-50%);background:var(--dlg);border:1px solid var(--acc);border-radius:8px;padding:8px 14px;max-width:90vw}
-/* Notícias sobre o mapa: cinco cartões por página */
-#newsTicker{position:absolute;z-index:850;top:62px;left:330px;right:64px;height:94px;padding:7px 34px;background:var(--g);border:1px solid var(--line);border-radius:12px;overflow:hidden;backdrop-filter:blur(8px)}
-#newsTicker[hidden]{display:none}
-#newsTrack{display:flex;height:100%;transition:transform .65s ease}
-.news-page{flex:0 0 100%;width:100%;min-width:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
-.news-card{min-width:0;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--f1);padding:6px 8px;text-decoration:none;color:var(--ink);display:flex;flex-direction:column;justify-content:space-between}
-.news-card:hover{border-color:var(--acc);background:var(--f2)}
-.news-card strong{font-size:.76rem;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.news-card small{font-size:.67rem;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#newsPrev,#newsNext{position:absolute;z-index:2;top:50%;transform:translateY(-50%);padding:3px 7px;background:var(--dlg)}
-#newsPrev{left:5px}#newsNext{right:5px}
-#newsStatus{position:absolute;right:36px;top:2px;font-size:9px;color:var(--mut)}
-@media(max-width:900px){#newsTicker{left:8px;right:8px;top:auto;bottom:116px;height:88px}.news-page{grid-template-columns:repeat(2,minmax(0,1fr))}.news-card:nth-child(n+3){display:none}}
-@media(max-width:480px){#newsTicker{bottom:128px;height:82px}.news-card strong{font-size:.7rem}}
-
-dialog{background:var(--dlg);color:var(--ink);border:1px solid var(--line);border-radius:12px;width:min(560px,94vw);max-height:84vh}dialog::backdrop{background:var(--back)}
-dialog h2{margin:0 0 8px;font-size:1.1rem}.row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.nl{list-style:none;padding:0;margin:0}.nl li{margin:10px 0}.nl a{color:var(--ink);font-weight:600}
-label{display:grid;gap:3px;margin:6px 0;font-size:.85rem;color:var(--mut)}.err{color:var(--bad);min-height:1.2em;font-size:.88rem}.ok{color:var(--good)}
-.leaflet-control-attribution{background:var(--g)!important;color:var(--mut)!important}.leaflet-control-attribution a{color:var(--link)!important}.leaflet-bar a,.leaflet-bar a:hover{background:var(--g);color:var(--ink);border-color:var(--line)}.leaflet-bar a:hover{background:var(--f2)}
-@media(max-width:700px){#panel{width:auto;right:8px;max-height:36%;top:calc(56px + env(safe-area-inset-top,0px))}#menu{top:auto;bottom:130px;flex-direction:row;flex-wrap:wrap;justify-content:flex-end;left:8px}#leg{display:none}#top{width:calc(100% - 16px)}}
+:root{--bg:#07111f;--g:rgba(10,19,33,.91);--ink:#edf4ff;--mut:#9fb1c8;--acc:#f5b301;--accink:#191400;--line:rgba(190,211,238,.19);--f1:rgba(255,255,255,.07);--f2:rgba(255,255,255,.14);--dlg:#101d30;--back:rgba(0,0,0,.68);--link:#a9d3ff;--bad:#ff9292;--good:#8be0a5;color-scheme:dark}
+:root[data-theme=light]{--bg:#eaf0f7;--g:rgba(255,255,255,.94);--ink:#14243a;--mut:#5c6b80;--acc:#e5a900;--accink:#171200;--line:rgba(20,36,58,.18);--f1:rgba(20,36,58,.06);--f2:rgba(20,36,58,.12);--dlg:#fff;--back:rgba(20,36,58,.5);--link:#0756a5;color-scheme:light}
+*{box-sizing:border-box}html,body{height:100%;margin:0}body{background:var(--bg);color:var(--ink);font:14px/1.4 Inter,system-ui,"Segoe UI",sans-serif;overflow:hidden}#map{position:absolute;inset:0;background:#101c2c}
+#fld,#prt{position:absolute;left:0;top:0;pointer-events:none;z-index:450}#fld{filter:blur(5px);transition:opacity .25s}
+#top,#panel,#menu,#leg,#bar,#newsTicker{position:absolute;z-index:1000}#top{top:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px;align-items:center;background:var(--g);border:1px solid var(--line);border-radius:14px;padding:6px 9px;box-shadow:0 8px 28px #0003;backdrop-filter:blur(14px)}.logo{padding:0 9px;color:var(--acc);font-weight:800;letter-spacing:.2px}button{font:inherit;color:var(--ink);background:var(--f1);border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer;white-space:nowrap}button:hover{background:var(--f2)}button.on,button.p{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:700}button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+#panel{top:12px;left:12px;width:286px;max-height:calc(100% - 150px);overflow:auto;background:var(--g);border:1px solid var(--line);border-radius:13px;padding:11px;box-shadow:0 8px 28px #0003;backdrop-filter:blur(14px)}.srch{display:flex;gap:6px}input{font:inherit;color:var(--ink);background:var(--f1);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}#res{list-style:none;margin:6px 0 0;padding:0}#res li button{width:100%;text-align:left;margin-top:3px}#favs{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}#favs button{font-size:.78rem;padding:3px 8px;border-radius:99px}.big{font-size:2.5rem;font-weight:300;line-height:1.1}.mut{color:var(--mut);font-size:.82rem}#days{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:9px}.dc{background:var(--f1);border:1px solid var(--line);border-radius:8px;padding:6px 3px;text-align:center;font-size:.75rem}.dc b{display:block;margin-bottom:3px}
+#menu{right:12px;top:12px;display:flex;flex-direction:column;gap:5px;align-items:flex-end;max-height:calc(100% - 180px);overflow:auto;padding:2px}#menu button{background:var(--g);box-shadow:0 3px 12px #0002;backdrop-filter:blur(12px)}#menu button.on,#menu button.on:hover{background:var(--acc);color:var(--accink);border-color:var(--acc)}#leg{left:12px;bottom:166px;width:min(270px,45vw);background:var(--g);border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:.76rem;backdrop-filter:blur(12px)}#lgb{height:9px;border-radius:5px;margin:4px 0}#lgl{display:flex;justify-content:space-between;color:var(--mut)}
+#newsTicker{left:310px;right:170px;bottom:78px;min-height:70px;background:rgba(7,17,31,.88);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:7px 9px;color:#f3f7ff;box-shadow:0 8px 28px #0004;backdrop-filter:blur(14px)}.tickerHead{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:.76rem}.tickerHead strong{color:#ffc629;letter-spacing:.2px}.tickerHead span{color:#a9b9ce}.tickerControls{margin-left:auto;display:flex;gap:4px}.tickerControls button{padding:2px 8px;color:#fff;background:#ffffff12;border-color:#ffffff24}.tickerGrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}.newsCard{min-width:0;border-left:2px solid #e5ad12;padding:1px 7px;display:flex;flex-direction:column;gap:3px}.newsCard a{color:#f4f7fc;text-decoration:none;font-size:.76rem;line-height:1.25;font-weight:650;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.newsCard a:hover{text-decoration:underline;color:#ffd34e}.newsCard small{color:#a9b9ce;font-size:.67rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tickerEmpty{font-size:.78rem;color:#c4d0df;padding:10px}@keyframes tickerEnter{from{opacity:.25;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}.tickerGrid{animation:tickerEnter .38s ease-out}
+#bar{left:12px;right:12px;bottom:10px;display:flex;gap:8px;align-items:center;background:var(--g);border:1px solid var(--line);border-radius:12px;padding:7px 10px;box-shadow:0 8px 28px #0003;backdrop-filter:blur(14px)}#sl{flex:1;min-width:120px;accent-color:var(--acc);padding:0}#tl{min-width:130px;font-variant-numeric:tabular-nums;font-size:.78rem}#dbtn{display:flex;gap:3px;flex-wrap:wrap}#dbtn button{padding:3px 8px;font-size:.75rem}#toast{position:absolute;z-index:1200;left:50%;bottom:190px;transform:translateX(-50%);background:var(--dlg);border:1px solid var(--acc);border-radius:8px;padding:8px 14px;max-width:90vw;box-shadow:0 5px 20px #0004}
+dialog{background:var(--dlg);color:var(--ink);border:1px solid var(--line);border-radius:13px;width:min(620px,94vw);max-height:84vh;box-shadow:0 18px 60px #0007}dialog::backdrop{background:var(--back)}dialog h2{margin:0 0 8px;font-size:1.1rem}.row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.nl{list-style:none;padding:0;margin:0}.nl li{margin:10px 0}.nl a{color:var(--ink);font-weight:650}label{display:grid;gap:3px;margin:6px 0;font-size:.85rem;color:var(--mut)}.err{color:var(--bad);min-height:1.2em;font-size:.88rem}.ok{color:var(--good)}.leaflet-control-attribution{background:var(--g)!important;color:var(--mut)!important}.leaflet-control-attribution a{color:var(--link)!important}.leaflet-bar a,.leaflet-bar a:hover{background:var(--g);color:var(--ink);border-color:var(--line)}.leaflet-control-zoom{margin-bottom:160px!important;margin-right:12px!important}
+@media(max-width:850px){#panel{width:250px;max-height:35%;top:62px;left:8px}#top{top:8px;width:calc(100% - 16px);justify-content:center}#menu{top:auto;bottom:145px;right:8px;max-width:48%;flex-direction:row;flex-wrap:wrap;justify-content:flex-end}#menu button{padding:5px 8px;font-size:.75rem}#leg{display:none}#newsTicker{left:8px;right:8px;bottom:82px;min-height:58px;padding:6px}.tickerGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}.newsCard:nth-child(n+3){display:none}.newsCard a{font-size:.7rem;-webkit-line-clamp:2}.newsCard small{font-size:.62rem}#bar{left:8px;right:8px;bottom:7px;padding:6px}#tl{min-width:88px;font-size:.7rem}#dbtn{display:none}.leaflet-control-zoom{margin-bottom:150px!important;margin-right:8px!important}}
+@media(max-width:420px){#panel{width:218px;max-height:32%;padding:8px}.big{font-size:2rem}#days{grid-template-columns:repeat(4,1fr)}.dc{font-size:.68rem}#top .logo{font-size:.82rem;padding:0 3px}#top button{padding:5px 7px;font-size:.75rem}#newsTicker{bottom:76px}.tickerHead{margin-bottom:3px}.tickerGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style></head><body>
 <div id="map"></div>
-<section id="newsTicker" aria-label="Últimas notícias do tempo" hidden>
- <button id="newsPrev" aria-label="Notícias anteriores">‹</button>
- <div id="newsTrack"></div>
- <span id="newsStatus"></span>
- <button id="newsNext" aria-label="Próximas notícias">›</button>
-</section>
-<header id="top"><b class="logo">MeteoMapa</b><span style="flex:1"></span><button id="bNews">Notícias</button><button id="bRep">Relatório</button><button id="bTheme" aria-label="Alternar entre tema claro e escuro" title="Alternar tema"></button></header>
+<header id="top"><b class="logo">MeteoMapa</b><button id="bBase" title="Alternar mapa base">Satélite</button><button id="bNews">Notícias</button><button id="bRep">Relatório</button><button id="bTheme" aria-label="Alternar entre tema claro e escuro" title="Alternar tema"></button></header>
 <aside id="panel"><div class="srch"><input id="q" placeholder="Buscar cidade" autocomplete="off" aria-label="Buscar cidade"><button id="loc" title="Minha localização" aria-label="Usar minha localização">◎</button></div>
 <ul id="res"></ul><div id="favs"></div><div id="now" class="mut" style="margin-top:8px">Busque uma cidade ou clique no mapa.</div><div id="days"></div></aside>
 <nav id="menu" aria-label="Camadas"></nav><div id="leg"><div id="lgn"></div><div id="lgb"></div><div id="lgl"></div></div>
+<section id="newsTicker" aria-label="Notícias meteorológicas"><div class="tickerHead"><strong>ÚLTIMAS NOTÍCIAS</strong><span id="tickerMeta">Carregando manchetes…</span><div class="tickerControls"><button id="tickerPrev" aria-label="Notícias anteriores">‹</button><button id="tickerNext" aria-label="Próximas notícias">›</button></div></div><div class="tickerGrid" id="tickerGrid"><div class="tickerEmpty">Carregando notícias…</div></div></section>
 <div id="bar"><button id="play" aria-label="Reproduzir previsão">▶</button><div id="dbtn"></div><input type="range" id="sl" min="0" max="0" value="0" aria-label="Horário da previsão"><span id="tl">carregando…</span></div>
 <div id="toast" role="status" hidden></div>
 
@@ -88,10 +51,9 @@ const WMO={0:["Céu limpo","☀️"],1:["Poucas nuvens","🌤️"],2:["Parcialme
 const wmo=c=>WMO[c]||(c>=71&&c<=77?["Neve","❄️"]:["Sem descrição","🌡️"]);
 
 /* ===== Tema claro/escuro ===== */
-// OpenStreetMap sem chave de API: evita tiles CARTO com marca d'água/API KEY REQUIRED.
-const tileUrl=t=>`https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`;
-const sysDark=matchMedia("(prefers-color-scheme:dark)");let TH=ST.theme||(sysDark.matches?"dark":"light"),base=null;
-function applyTheme(){TH=ST.theme||(sysDark.matches?"dark":"light");document.documentElement.dataset.theme=TH;if(base)base.setUrl(tileUrl(TH));
+const tileUrl=t=>t==="sat"?"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}":`https://tile.openstreetmap.org/{z}/{x}/{y}.png`;
+const sysDark=matchMedia("(prefers-color-scheme:dark)");let TH=ST.theme||(sysDark.matches?"dark":"light"),base=null,BASE="street";
+function applyTheme(){TH=ST.theme||(sysDark.matches?"dark":"light");document.documentElement.dataset.theme=TH;if(base&&BASE==="street")base.setUrl(tileUrl(TH));
  $("#bTheme").textContent=TH==="dark"?"☀":"☾";$("#bTheme").setAttribute("aria-label",TH==="dark"?"Mudar para tema claro":"Mudar para tema escuro");
  const m=document.querySelector('meta[name=theme-color]');if(m)m.content=TH==="dark"?"#0b1020":"#e9eef6"}
 $("#bTheme").onclick=()=>{ST.theme=TH==="dark"?"light":"dark";save();applyTheme()};
@@ -110,15 +72,13 @@ function samp(arr,G,lat,lon,h){const fi=Math.min(G.nx-1.001,Math.max(0,(lon-G.w)
 /* ===== Mapa ===== */
 const map=L.map("map",{zoomControl:false,worldCopyJump:true,minZoom:2,maxZoom:10}).setView([-14,-52],4);
 L.control.zoom({position:"bottomright"}).addTo(map);
-base=L.tileLayer(tileUrl(TH),{subdomains:"abc",crossOrigin:"anonymous",maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map);
+base=L.tileLayer(tileUrl("street"),{crossOrigin:true,maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
 applyTheme();
 map.attributionControl.addAttribution('Dados: <a href="https://open-meteo.com/">Open-Meteo.com</a> (CC BY 4.0)');
+$("#bBase").onclick=()=>{BASE=BASE==="street"?"sat":"street";base.setUrl(tileUrl(BASE));map.attributionControl.removeAttribution('© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>');map.attributionControl.removeAttribution('Imagery © <a href="https://www.esri.com/">Esri</a>');map.attributionControl.addAttribution(BASE==="sat"?'Imagery © <a href="https://www.esri.com/">Esri</a>':'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>');$("#bBase").textContent=BASE==="street"?"Satélite":"Mapa";map.invalidateSize()};
 const cv=document.createElement("canvas"),cp=document.createElement("canvas");cv.id="fld";cp.id="prt";map.getContainer().append(cv,cp);
 const cx=cv.getContext("2d"),px=cp.getContext("2d");let G=null,T=0,lat=null,GK="",POINT=null,NEWS=null;
-function fit(){const s=map.getSize();cv.width=cp.width=s.x;cv.height=cp.height=s.y}
-fit();map.whenReady(()=>setTimeout(()=>{map.invalidateSize(true);fit()},250));
-map.on("resize",()=>{fit();setTimeout(()=>map.invalidateSize(true),50)});
-window.addEventListener("resize",()=>{map.invalidateSize(true);fit()});
+function fit(){const s=map.getSize();cv.width=cp.width=s.x;cv.height=cp.height=s.y}fit();
 
 async function loadGrid(){const b=map.getBounds().pad(.12),s=Math.max(-80,b.getSouth()),n=Math.min(80,b.getNorth()),w=Math.max(-180,b.getWest()),e=Math.min(180,b.getEast());
  const key=[s,n,w,e].map(v=>Math.round(v/3)).join("|");if(G&&key===GK){render();return}
@@ -181,74 +141,58 @@ let qd=0;$("#q").oninput=e=>{clearTimeout(qd);const q=e.target.value.trim(),ul=$
 $("#loc").onclick=()=>{if(!navigator.geolocation)return toast("Seu navegador não oferece geolocalização.");navigator.geolocation.getCurrentPosition(p=>{map.flyTo([p.coords.latitude,p.coords.longitude],8);setPoint(p.coords.latitude,p.coords.longitude,"Minha localização")},()=>toast("Não consegui obter sua localização (permissão negada?)."),{timeout:10000})};
 map.on("click",e=>setPoint(e.latlng.lat,e.latlng.lng));
 
-/* ===== Notícias na tela inicial + diálogo ===== */
-let NS="Brasil",newsPage=0,newsTimer=null,visibleNews=[];
-async function loadNews(){try{const r=await fetch("news.json?"+Date.now());if(r.ok)NEWS=await r.json()}catch(e){}renderNewsTicker()}
-function newsItems(scope="Brasil"){return ((NEWS&&NEWS.items)||[]).filter(i=>scope==="Todas"||i.scope===scope)}
-function renderNewsTicker(){
- const track=$("#newsTrack");track.replaceChildren();visibleNews=newsItems("Brasil").slice(0,30);
- if(!visibleNews.length){$("#newsTicker").hidden=true;return}
- $("#newsTicker").hidden=false;
- const pages=Math.ceil(visibleNews.length/5);
- for(let p=0;p<pages;p++){
-  const page=E("div","news-page");
-  visibleNews.slice(p*5,p*5+5).forEach(i=>{
-   const a=E("a","news-card");a.href=/^https?:\/\//.test(i.link)?i.link:"#";a.target="_blank";a.rel="noopener noreferrer";
-   const title=E("strong",null,i.title||"Notícia");const meta=E("small",null,`${i.source||"Fonte"} · ${i.published?new Date(i.published).toLocaleDateString("pt-BR"):""}`);
-   a.append(title,meta);page.append(a);
-  });
-  track.append(page);
- }
- newsPage=0;updateNewsPage();
- if(newsTimer)clearInterval(newsTimer);
- newsTimer=setInterval(()=>moveNews(1),8500);
-}
-function updateNewsPage(){
- const pages=Math.max(1,Math.ceil(visibleNews.length/5));
- $("#newsTrack").style.transform=`translateX(-${newsPage*100}%)`;
- $("#newsStatus").textContent=`${newsPage+1}/${pages}`;
- $("#newsPrev").disabled=pages<2;$("#newsNext").disabled=pages<2;
-}
-function moveNews(delta){const pages=Math.max(1,Math.ceil(visibleNews.length/5));newsPage=(newsPage+delta+pages)%pages;updateNewsPage()}
-$("#newsPrev").onclick=()=>moveNews(-1);$("#newsNext").onclick=()=>moveNews(1);
-$("#newsTicker").addEventListener("mouseenter",()=>{if(newsTimer)clearInterval(newsTimer)});
-$("#newsTicker").addEventListener("mouseleave",()=>{if(newsTimer)clearInterval(newsTimer);newsTimer=setInterval(()=>moveNews(1),8500)});
-function newsView(){
- const tb=$("#ntabs");tb.replaceChildren();["Brasil","Mundo","Tempestades"].forEach(s=>{const b=E("button",NS===s?"on":"",s);b.onclick=()=>{NS=s;newsView()};tb.append(b)});
- const ul=$("#nlist");ul.replaceChildren();
- if(!NEWS){$("#nmeta").textContent="news.json não encontrado. Rode o workflow “Atualizar notícias” (veja o TUTORIAL.md).";return}
- const age=(Date.now()-new Date(NEWS.generated_at))/36e5;$("#nmeta").textContent=`Atualizado em ${new Date(NEWS.generated_at).toLocaleString("pt-BR")} (há ${Math.round(age)} h). Só título, fonte e link originais.`;
- const it=newsItems(NS);if(!it.length)ul.append(E("li","mut","Nenhuma notícia nesta seção ainda."));
- it.slice(0,25).forEach(i=>{const li=E("li"),a=E("a",null,i.title);if(/^https?:\/\//.test(i.link)){a.href=i.link;a.target="_blank";a.rel="noopener noreferrer"}li.append(a,E("div","mut",`${i.source} · ${new Date(i.published).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`));ul.append(li)})
-}
+/* ===== Notícias: painel completo + carrossel na tela inicial ===== */
+let NS="Brasil",NEWS_INDEX=0,NEWS_TIMER=null;
+async function loadNews(){try{const r=await fetch("news.json?"+Date.now());if(r.ok)NEWS=await r.json()}catch(e){}renderTicker()}
+function newsItems(){return ((NEWS&&NEWS.items)||[]).slice().sort((a,b)=>new Date(b.published||0)-new Date(a.published||0))}
+function renderTicker(){const grid=$("#tickerGrid"),meta=$("#tickerMeta");if(!NEWS){grid.innerHTML='<div class="tickerEmpty">Notícias indisponíveis. Consulte o painel Notícias.</div>';meta.textContent="Sem atualização";return}
+ const all=newsItems();if(!all.length){grid.innerHTML='<div class="tickerEmpty">Nenhuma manchete disponível nesta categoria.</div>';meta.textContent="Sem manchetes";return}
+ const total=Math.ceil(all.length/5),page=NEWS_INDEX%total,items=all.slice(page*5,page*5+5);grid.replaceChildren();grid.style.animation="none";void grid.offsetWidth;grid.style.animation="tickerEnter .38s ease-out";items.forEach(i=>{const card=E("article","newsCard"),a=E("a",null,i.title||"Notícia meteorológica");if(/^https?:\/\//.test(i.link||"")){a.href=i.link;a.target="_blank";a.rel="noopener noreferrer"}const sm=E("small",null,`${i.source||"Fonte"} · ${i.published?new Date(i.published).toLocaleDateString("pt-BR"):""}`);card.append(a,sm);grid.append(card)});
+ const age=NEWS.generated_at?new Date(NEWS.generated_at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"";meta.textContent=`${items.length} de ${all.length} manchetes · ${age}`}
+function tickerMove(delta){const all=newsItems(),pages=Math.max(1,Math.ceil(all.length/5));NEWS_INDEX=(NEWS_INDEX+delta+pages)%pages;renderTicker()}
+$("#tickerPrev").onclick=()=>tickerMove(-1);$("#tickerNext").onclick=()=>tickerMove(1);
+function startTicker(){clearInterval(NEWS_TIMER);NEWS_TIMER=setInterval(()=>tickerMove(1),8500)}startTicker();
+function newsView(){const tb=$("#ntabs");tb.replaceChildren();["Brasil","Mundo","Tempestades"].forEach(s=>{const b=E("button",NS===s?"on":"",s);b.onclick=()=>{NS=s;NEWS_INDEX=0;newsView();renderTicker()};tb.append(b)});const ul=$("#nlist");ul.replaceChildren();
+ if(!NEWS){$("#nmeta").textContent="news.json não encontrado. Rode o workflow “Atualizar notícias”.";return}
+ const age=(Date.now()-new Date(NEWS.generated_at))/36e5;$("#nmeta").textContent=`Atualizado em ${new Date(NEWS.generated_at).toLocaleString("pt-BR")} (há ${Math.max(0,Math.round(age))} h). Títulos, fontes e links originais.`;
+ const it=(NEWS.items||[]).filter(i=>i.scope===NS);if(!it.length)ul.append(E("li","mut","Nenhuma notícia nesta seção ainda."));
+ it.slice(0,30).forEach(i=>{const li=E("li"),a=E("a",null,i.title);if(/^https?:\/\//.test(i.link||"")){a.href=i.link;a.target="_blank";a.rel="noopener noreferrer"}li.append(a,E("div","mut",`${i.source} · ${i.published?new Date(i.published).toLocaleString("pt-BR"):""}`));ul.append(li)})}
 $("#bNews").onclick=async()=>{await loadNews();newsView();$("#dNews").showModal()};
 
 /* ===== Relatório PDF / WhatsApp / e-mail ===== */
 const okMail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
 function shortTxt(){const d=POINT.d,c=d.current;return`Previsão para ${POINT.name}: agora ${fmt(c.temperature_2m)}°C, ${wmo(c.weather_code)[0]}. Hoje ${fmt(d.daily.temperature_2m_min[0])}° a ${fmt(d.daily.temperature_2m_max[0])}°, chuva ${fmt(d.daily.precipitation_probability_max[0])}%.\nMapa ao vivo: ${location.origin}${location.pathname}#${POINT.lat.toFixed(3)},${POINT.lon.toFixed(3)},8`}
-async function captureMapImage(){
- const el=map.getContainer(),r=el.getBoundingClientRect(),scale=1.5,w=Math.max(600,Math.round(r.width*scale)),h=Math.max(320,Math.round(r.height*scale));
- const c=document.createElement("canvas");c.width=w;c.height=h;const x=c.getContext("2d");
- x.fillStyle=TH==="dark"?"#202938":"#e7edf4";x.fillRect(0,0,w,h);
- const imgs=[...el.querySelectorAll(".leaflet-tile")];
- await Promise.all(imgs.map(im=>im.complete?Promise.resolve():new Promise(res=>{im.onload=res;im.onerror=res;setTimeout(res,1800)})));
- imgs.forEach(im=>{try{if(!im.naturalWidth)return;const q=im.getBoundingClientRect();x.drawImage(im,(q.left-r.left)*scale,(q.top-r.top)*scale,q.width*scale,q.height*scale)}catch(e){}});
- // Sobrepõe os campos meteorológicos desenhados pelo próprio aplicativo.
- [cv,cp].forEach(layer=>{try{x.drawImage(layer,0,0,w,h)}catch(e){}});
- if(POINT){const p=map.latLngToContainerPoint([POINT.lat,POINT.lon]);x.beginPath();x.arc(p.x*scale,p.y*scale,8*scale,0,Math.PI*2);x.fillStyle="#f5b301";x.fill();x.lineWidth=3*scale;x.strokeStyle="#fff";x.stroke()}
- x.fillStyle=TH==="dark"?"#fff":"#172033";x.font=`bold ${14*scale}px sans-serif`;x.fillText("MeteoMapa · "+POINT.name,12*scale,22*scale);
- return c.toDataURL("image/jpeg",.82);
+async function mapSnapshot(){
+ // Captura uma imagem cartográfica real com tiles OSM; desenha o marcador e a escala no canvas.
+ const size=640,canvas=document.createElement("canvas");canvas.width=size;canvas.height=340;const ctx=canvas.getContext("2d");ctx.fillStyle="#15243a";ctx.fillRect(0,0,size,340);
+ const zoom=Math.max(4,Math.min(8,map.getZoom()||6)),n=2**zoom,latRad=POINT.lat*Math.PI/180;
+ const xt=(POINT.lon+180)/360*n,yt=(1-Math.asinh(Math.tan(latRad))/Math.PI)/2*n;
+ const centerX=xt*256,centerY=yt*256,originX=centerX-size/2,originY=centerY-340/2;
+ const x0=Math.floor(originX/256),y0=Math.floor(originY/256),x1=Math.floor((originX+size)/256),y1=Math.floor((originY+340)/256);let loaded=0,failed=false;
+ const tasks=[];for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){const img=new Image();img.crossOrigin="anonymous";const xx=x,yy=y;tasks.push(new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(limit);resolve()};const limit=setTimeout(()=>{failed=true;finish()},5500);img.onload=()=>{if(done)return;try{ctx.drawImage(img,xx*256-originX,yy*256-originY,256,256);loaded++}catch(e){failed=true}finish()};img.onerror=()=>{failed=true;finish()};img.src=`https://tile.openstreetmap.org/${zoom}/${(x+n)%n}/${y}.png`}))}
+ await Promise.all(tasks);
+ if(!loaded){ctx.fillStyle="#1b304a";ctx.fillRect(0,0,size,340);ctx.strokeStyle="rgba(180,210,240,.18)";ctx.lineWidth=1;for(let x=0;x<size;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,340);ctx.stroke()}for(let y=0;y<340;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(size,y);ctx.stroke()}ctx.fillStyle="#e8f1ff";ctx.font="16px sans-serif";ctx.fillText("Mapa esquemático da localização",18,28);ctx.font="12px sans-serif";ctx.fillText("Tiles cartográficos indisponíveis nesta geração.",18,50)}
+ const mx=size/2,my=170;ctx.beginPath();ctx.arc(mx,my,10,0,Math.PI*2);ctx.fillStyle="#ffc400";ctx.fill();ctx.lineWidth=3;ctx.strokeStyle="#172338";ctx.stroke();ctx.beginPath();ctx.arc(mx,my,19,0,Math.PI*2);ctx.strokeStyle="rgba(255,196,0,.55)";ctx.lineWidth=2;ctx.stroke();ctx.fillStyle="#fff";ctx.font="bold 13px sans-serif";ctx.fillText(POINT.name.slice(0,55),14,320);ctx.fillStyle="#fff";ctx.fillRect(size-112,314,98,18);ctx.fillStyle="#14243a";ctx.font="10px sans-serif";ctx.fillText("OpenStreetMap",size-106,327);
+ try{return canvas.toDataURL("image/jpeg",.82)}catch(e){
+  // Alguns servidores de tiles não autorizam exportação cross-origin; garante uma imagem cartográfica esquemática no PDF.
+  ctx.fillStyle="#172b43";ctx.fillRect(0,0,size,340);ctx.strokeStyle="rgba(165,198,225,.25)";ctx.lineWidth=2;
+  for(let i=0;i<7;i++){ctx.beginPath();ctx.moveTo(-20,i*62+20);ctx.bezierCurveTo(160,i*62-25,390,i*62+95,670,i*62+15);ctx.stroke()}
+  ctx.strokeStyle="rgba(236,190,105,.75)";ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(60,300);ctx.bezierCurveTo(180,230,260,270,330,170);ctx.bezierCurveTo(400,80,500,130,600,30);ctx.stroke();
+  ctx.fillStyle="#e8f1ff";ctx.font="bold 16px sans-serif";ctx.fillText("MAPA ESQUEMÁTICO",18,28);ctx.font="12px sans-serif";ctx.fillText("Imagem cartográfica externa bloqueou a exportação.",18,50);ctx.fillText(`${POINT.lat.toFixed(4)}, ${POINT.lon.toFixed(4)}`,18,320);
+  ctx.beginPath();ctx.arc(size/2,170,10,0,Math.PI*2);ctx.fillStyle="#ffc400";ctx.fill();ctx.lineWidth=3;ctx.strokeStyle="#172338";ctx.stroke();return canvas.toDataURL("image/jpeg",.82)
+ }
 }
-async function pdfFile(){if(!POINT||!POINT.d){$("#rErr").textContent="Escolha um local no mapa ou na busca antes.";return null}$("#rErr").textContent="";if(!window.jspdf){$("#rErr").textContent="A biblioteca de PDF não carregou.";return null}
- const d=new window.jspdf.jsPDF(),D=POINT.d,c=D.current;let y=18;const ln=(t,s=10,url)=>{d.setFontSize(s);d.splitTextToSize(t,182).forEach(l=>{if(y>282){d.addPage();y=18}if(url){d.setTextColor(20,90,200);d.textWithLink(l,14,y,{url});d.setTextColor(0)}else d.text(l,14,y);y+=s*.5+2.6})};
- ln("Relatorio meteorologico",16);ln(POINT.name+"  |  gerado em "+new Date().toLocaleString("pt-BR"),9);y+=3;
- try{const mapShot=await captureMapImage();d.addImage(mapShot,"JPEG",14,y,182,82);y+=87}catch(e){ln("Mapa ilustrativo indisponível nesta geração.",8);y+=2}
- ln(`Agora: ${fmt(c.temperature_2m)} C (sensacao ${fmt(c.apparent_temperature)} C), ${wmo(c.weather_code)[0]}, vento ${fmt(c.wind_speed_10m)} km/h, umidade ${fmt(c.relative_humidity_2m)}%`,11);y+=3;ln("Proximos 7 dias",12);
- D.daily.time.forEach((t,i)=>ln(`${new Date(t+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit"})}   ${fmt(D.daily.temperature_2m_min[i])} / ${fmt(D.daily.temperature_2m_max[i])} C   chuva ${fmt(D.daily.precipitation_probability_max[i])}%   vento max ${fmt(D.daily.wind_speed_10m_max[i])} km/h   ${wmo(D.daily.weather_code[i])[0]}`,10));
- y+=4;ln("Abrir o mapa ao vivo neste local",11,`${location.origin}${location.pathname}#${POINT.lat.toFixed(3)},${POINT.lon.toFixed(3)},8`);
- const it=((NEWS&&NEWS.items)||[]).filter(i=>i.scope==="Brasil").slice(0,6);if(it.length){y+=4;ln("Manchetes (clique para abrir a fonte)",12);it.forEach(i=>ln(i.title+" ("+i.source+")",9,/^https?:\/\//.test(i.link)?i.link:undefined))}
- y+=6;ln("Dados: Open-Meteo.com (CC BY 4.0). Material informativo; para alertas oficiais consulte INMET e Defesa Civil.",8);
- return new File([d.output("blob")],"relatorio-tempo-"+new Date().toISOString().slice(0,10)+".pdf",{type:"application/pdf"})}
+async function pdfFile(){if(!POINT||!POINT.d){$("#rErr").textContent="Escolha um local no mapa ou na busca antes.";return null}$("#rErr").textContent="Preparando relatório e imagem do mapa…";if(!window.jspdf){$("#rErr").textContent="A biblioteca de PDF não carregou.";return null}
+ const d=new window.jspdf.jsPDF(),D=POINT.d,c=D.current;let y=16;const ln=(t,s=10,url)=>{d.setFontSize(s);d.splitTextToSize(t,182).forEach(l=>{if(y>282){d.addPage();y=18}if(url){d.setTextColor(20,90,200);d.textWithLink(l,14,y,{url});d.setTextColor(0)}else d.text(l,14,y);y+=s*.5+2.6})};
+ ln("RELATÓRIO METEOROLÓGICO",16);ln(POINT.name+"  |  gerado em "+new Date().toLocaleString("pt-BR"),9);y+=3;
+ try{const img=await mapSnapshot();d.setFontSize(10);d.text("Mapa da localização selecionada",14,y);y+=4;d.addImage(img,"JPEG",14,y,182,96,undefined,"FAST");y+=102}catch(e){ln("Mapa: imagem indisponível no momento.",9);y+=2}
+ ln(`Coordenadas: ${POINT.lat.toFixed(4)}, ${POINT.lon.toFixed(4)}`,9);y+=3;
+ ln(`Agora: ${fmt(c.temperature_2m)} C (sensação ${fmt(c.apparent_temperature)} C), ${wmo(c.weather_code)[0]}, vento ${fmt(c.wind_speed_10m)} km/h, umidade ${fmt(c.relative_humidity_2m)}%`,10);y+=3;ln("PRÓXIMOS 7 DIAS",12);
+ D.daily.time.forEach((t,i)=>ln(`${new Date(t+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit"})}   ${fmt(D.daily.temperature_2m_min[i])} / ${fmt(D.daily.temperature_2m_max[i])} C   chuva ${fmt(D.daily.precipitation_probability_max[i])}%   vento max ${fmt(D.daily.wind_speed_10m_max[i])} km/h   ${wmo(D.daily.weather_code[i])[0]}`,9));
+ y+=4;ln("Abrir o mapa ao vivo neste local",10,`${location.origin}${location.pathname}#${POINT.lat.toFixed(3)},${POINT.lon.toFixed(3)},8`);
+ const it=((NEWS&&NEWS.items)||[]).filter(i=>i.scope==="Brasil").slice(0,6);if(it.length){y+=4;ln("MANCHETES",11);it.forEach(i=>ln(i.title+" ("+i.source+")",8,/^https?:\/\//.test(i.link||"")?i.link:undefined))}
+ y+=5;ln("Dados meteorológicos: Open-Meteo.com (CC BY 4.0). Cartografia: OpenStreetMap. Material informativo; para alertas oficiais consulte INMET e Defesa Civil.",8);
+ $("#rErr").textContent="Relatório pronto.";return new File([d.output("blob")],"relatorio-tempo-"+new Date().toISOString().slice(0,10)+".pdf",{type:"application/pdf"})}
 function dlFile(f){const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
 $("#bRep").onclick=async()=>{await loadNews();$("#rErr").textContent="";$("#dRep").showModal()};
 $("#rPdf").onclick=async()=>{const f=await pdfFile();if(f)dlFile(f)};
