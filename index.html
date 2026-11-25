@@ -31,6 +31,21 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #bar{left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;align-items:center;background:var(--g);border:1px solid var(--line);border-radius:12px;padding:6px 10px;flex-wrap:wrap}
 #sl{flex:1;min-width:140px;accent-color:var(--acc);padding:0}#tl{min-width:130px;font-variant-numeric:tabular-nums}#dbtn{display:flex;gap:3px;flex-wrap:wrap}#dbtn button{padding:3px 8px;font-size:.8rem}
 #toast{position:absolute;z-index:1100;left:50%;bottom:90px;transform:translateX(-50%);background:var(--dlg);border:1px solid var(--acc);border-radius:8px;padding:8px 14px;max-width:90vw}
+/* Notícias sobre o mapa: cinco cartões por página */
+#newsTicker{position:absolute;z-index:850;top:62px;left:330px;right:64px;height:94px;padding:7px 34px;background:var(--g);border:1px solid var(--line);border-radius:12px;overflow:hidden;backdrop-filter:blur(8px)}
+#newsTicker[hidden]{display:none}
+#newsTrack{display:flex;height:100%;transition:transform .65s ease}
+.news-page{flex:0 0 100%;width:100%;min-width:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+.news-card{min-width:0;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--f1);padding:6px 8px;text-decoration:none;color:var(--ink);display:flex;flex-direction:column;justify-content:space-between}
+.news-card:hover{border-color:var(--acc);background:var(--f2)}
+.news-card strong{font-size:.76rem;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.news-card small{font-size:.67rem;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#newsPrev,#newsNext{position:absolute;z-index:2;top:50%;transform:translateY(-50%);padding:3px 7px;background:var(--dlg)}
+#newsPrev{left:5px}#newsNext{right:5px}
+#newsStatus{position:absolute;right:36px;top:2px;font-size:9px;color:var(--mut)}
+@media(max-width:900px){#newsTicker{left:8px;right:8px;top:auto;bottom:116px;height:88px}.news-page{grid-template-columns:repeat(2,minmax(0,1fr))}.news-card:nth-child(n+3){display:none}}
+@media(max-width:480px){#newsTicker{bottom:128px;height:82px}.news-card strong{font-size:.7rem}}
+
 dialog{background:var(--dlg);color:var(--ink);border:1px solid var(--line);border-radius:12px;width:min(560px,94vw);max-height:84vh}dialog::backdrop{background:var(--back)}
 dialog h2{margin:0 0 8px;font-size:1.1rem}.row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.nl{list-style:none;padding:0;margin:0}.nl li{margin:10px 0}.nl a{color:var(--ink);font-weight:600}
 label{display:grid;gap:3px;margin:6px 0;font-size:.85rem;color:var(--mut)}.err{color:var(--bad);min-height:1.2em;font-size:.88rem}.ok{color:var(--good)}
@@ -38,6 +53,12 @@ label{display:grid;gap:3px;margin:6px 0;font-size:.85rem;color:var(--mut)}.err{c
 @media(max-width:700px){#panel{width:auto;right:8px;max-height:36%;top:calc(56px + env(safe-area-inset-top,0px))}#menu{top:auto;bottom:130px;flex-direction:row;flex-wrap:wrap;justify-content:flex-end;left:8px}#leg{display:none}#top{width:calc(100% - 16px)}}
 </style></head><body>
 <div id="map"></div>
+<section id="newsTicker" aria-label="Últimas notícias do tempo" hidden>
+ <button id="newsPrev" aria-label="Notícias anteriores">‹</button>
+ <div id="newsTrack"></div>
+ <span id="newsStatus"></span>
+ <button id="newsNext" aria-label="Próximas notícias">›</button>
+</section>
 <header id="top"><b class="logo">MeteoMapa</b><span style="flex:1"></span><button id="bNews">Notícias</button><button id="bRep">Relatório</button><button id="bTheme" aria-label="Alternar entre tema claro e escuro" title="Alternar tema"></button></header>
 <aside id="panel"><div class="srch"><input id="q" placeholder="Buscar cidade" autocomplete="off" aria-label="Buscar cidade"><button id="loc" title="Minha localização" aria-label="Usar minha localização">◎</button></div>
 <ul id="res"></ul><div id="favs"></div><div id="now" class="mut" style="margin-top:8px">Busque uma cidade ou clique no mapa.</div><div id="days"></div></aside>
@@ -67,7 +88,8 @@ const WMO={0:["Céu limpo","☀️"],1:["Poucas nuvens","🌤️"],2:["Parcialme
 const wmo=c=>WMO[c]||(c>=71&&c<=77?["Neve","❄️"]:["Sem descrição","🌡️"]);
 
 /* ===== Tema claro/escuro ===== */
-const tileUrl=t=>`https://{s}.basemaps.cartocdn.com/${t==="dark"?"dark_all":"light_all"}/{z}/{x}/{y}{r}.png`;
+// OpenStreetMap sem chave de API: evita tiles CARTO com marca d'água/API KEY REQUIRED.
+const tileUrl=t=>`https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`;
 const sysDark=matchMedia("(prefers-color-scheme:dark)");let TH=ST.theme||(sysDark.matches?"dark":"light"),base=null;
 function applyTheme(){TH=ST.theme||(sysDark.matches?"dark":"light");document.documentElement.dataset.theme=TH;if(base)base.setUrl(tileUrl(TH));
  $("#bTheme").textContent=TH==="dark"?"☀":"☾";$("#bTheme").setAttribute("aria-label",TH==="dark"?"Mudar para tema claro":"Mudar para tema escuro");
@@ -88,12 +110,15 @@ function samp(arr,G,lat,lon,h){const fi=Math.min(G.nx-1.001,Math.max(0,(lon-G.w)
 /* ===== Mapa ===== */
 const map=L.map("map",{zoomControl:false,worldCopyJump:true,minZoom:2,maxZoom:10}).setView([-14,-52],4);
 L.control.zoom({position:"bottomright"}).addTo(map);
-base=L.tileLayer(tileUrl(TH),{subdomains:"abcd",maxZoom:10,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map);
+base=L.tileLayer(tileUrl(TH),{subdomains:"abc",crossOrigin:"anonymous",maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map);
 applyTheme();
 map.attributionControl.addAttribution('Dados: <a href="https://open-meteo.com/">Open-Meteo.com</a> (CC BY 4.0)');
 const cv=document.createElement("canvas"),cp=document.createElement("canvas");cv.id="fld";cp.id="prt";map.getContainer().append(cv,cp);
 const cx=cv.getContext("2d"),px=cp.getContext("2d");let G=null,T=0,lat=null,GK="",POINT=null,NEWS=null;
-function fit(){const s=map.getSize();cv.width=cp.width=s.x;cv.height=cp.height=s.y}fit();
+function fit(){const s=map.getSize();cv.width=cp.width=s.x;cv.height=cp.height=s.y}
+fit();map.whenReady(()=>setTimeout(()=>{map.invalidateSize(true);fit()},250));
+map.on("resize",()=>{fit();setTimeout(()=>map.invalidateSize(true),50)});
+window.addEventListener("resize",()=>{map.invalidateSize(true);fit()});
 
 async function loadGrid(){const b=map.getBounds().pad(.12),s=Math.max(-80,b.getSouth()),n=Math.min(80,b.getNorth()),w=Math.max(-180,b.getWest()),e=Math.min(180,b.getEast());
  const key=[s,n,w,e].map(v=>Math.round(v/3)).join("|");if(G&&key===GK){render();return}
@@ -156,22 +181,68 @@ let qd=0;$("#q").oninput=e=>{clearTimeout(qd);const q=e.target.value.trim(),ul=$
 $("#loc").onclick=()=>{if(!navigator.geolocation)return toast("Seu navegador não oferece geolocalização.");navigator.geolocation.getCurrentPosition(p=>{map.flyTo([p.coords.latitude,p.coords.longitude],8);setPoint(p.coords.latitude,p.coords.longitude,"Minha localização")},()=>toast("Não consegui obter sua localização (permissão negada?)."),{timeout:10000})};
 map.on("click",e=>setPoint(e.latlng.lat,e.latlng.lng));
 
-/* ===== Notícias (news.json gerado pelo GitHub Actions) ===== */
-let NS="Brasil";
-async function loadNews(){try{const r=await fetch("news.json?"+Date.now());if(r.ok)NEWS=await r.json()}catch(e){}}
-function newsView(){const tb=$("#ntabs");tb.replaceChildren();["Brasil","Mundo","Tempestades"].forEach(s=>{const b=E("button",NS===s?"on":"",s);b.onclick=()=>{NS=s;newsView()};tb.append(b)});const ul=$("#nlist");ul.replaceChildren();
+/* ===== Notícias na tela inicial + diálogo ===== */
+let NS="Brasil",newsPage=0,newsTimer=null,visibleNews=[];
+async function loadNews(){try{const r=await fetch("news.json?"+Date.now());if(r.ok)NEWS=await r.json()}catch(e){}renderNewsTicker()}
+function newsItems(scope="Brasil"){return ((NEWS&&NEWS.items)||[]).filter(i=>scope==="Todas"||i.scope===scope)}
+function renderNewsTicker(){
+ const track=$("#newsTrack");track.replaceChildren();visibleNews=newsItems("Brasil").slice(0,30);
+ if(!visibleNews.length){$("#newsTicker").hidden=true;return}
+ $("#newsTicker").hidden=false;
+ const pages=Math.ceil(visibleNews.length/5);
+ for(let p=0;p<pages;p++){
+  const page=E("div","news-page");
+  visibleNews.slice(p*5,p*5+5).forEach(i=>{
+   const a=E("a","news-card");a.href=/^https?:\/\//.test(i.link)?i.link:"#";a.target="_blank";a.rel="noopener noreferrer";
+   const title=E("strong",null,i.title||"Notícia");const meta=E("small",null,`${i.source||"Fonte"} · ${i.published?new Date(i.published).toLocaleDateString("pt-BR"):""}`);
+   a.append(title,meta);page.append(a);
+  });
+  track.append(page);
+ }
+ newsPage=0;updateNewsPage();
+ if(newsTimer)clearInterval(newsTimer);
+ newsTimer=setInterval(()=>moveNews(1),8500);
+}
+function updateNewsPage(){
+ const pages=Math.max(1,Math.ceil(visibleNews.length/5));
+ $("#newsTrack").style.transform=`translateX(-${newsPage*100}%)`;
+ $("#newsStatus").textContent=`${newsPage+1}/${pages}`;
+ $("#newsPrev").disabled=pages<2;$("#newsNext").disabled=pages<2;
+}
+function moveNews(delta){const pages=Math.max(1,Math.ceil(visibleNews.length/5));newsPage=(newsPage+delta+pages)%pages;updateNewsPage()}
+$("#newsPrev").onclick=()=>moveNews(-1);$("#newsNext").onclick=()=>moveNews(1);
+$("#newsTicker").addEventListener("mouseenter",()=>{if(newsTimer)clearInterval(newsTimer)});
+$("#newsTicker").addEventListener("mouseleave",()=>{if(newsTimer)clearInterval(newsTimer);newsTimer=setInterval(()=>moveNews(1),8500)});
+function newsView(){
+ const tb=$("#ntabs");tb.replaceChildren();["Brasil","Mundo","Tempestades"].forEach(s=>{const b=E("button",NS===s?"on":"",s);b.onclick=()=>{NS=s;newsView()};tb.append(b)});
+ const ul=$("#nlist");ul.replaceChildren();
  if(!NEWS){$("#nmeta").textContent="news.json não encontrado. Rode o workflow “Atualizar notícias” (veja o TUTORIAL.md).";return}
  const age=(Date.now()-new Date(NEWS.generated_at))/36e5;$("#nmeta").textContent=`Atualizado em ${new Date(NEWS.generated_at).toLocaleString("pt-BR")} (há ${Math.round(age)} h). Só título, fonte e link originais.`;
- const it=(NEWS.items||[]).filter(i=>i.scope===NS);if(!it.length)ul.append(E("li","mut","Nenhuma notícia nesta seção ainda."));
- it.slice(0,25).forEach(i=>{const li=E("li"),a=E("a",null,i.title);if(/^https?:\/\//.test(i.link)){a.href=i.link;a.target="_blank";a.rel="noopener noreferrer"}li.append(a,E("div","mut",`${i.source} · ${new Date(i.published).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`));ul.append(li)})}
+ const it=newsItems(NS);if(!it.length)ul.append(E("li","mut","Nenhuma notícia nesta seção ainda."));
+ it.slice(0,25).forEach(i=>{const li=E("li"),a=E("a",null,i.title);if(/^https?:\/\//.test(i.link)){a.href=i.link;a.target="_blank";a.rel="noopener noreferrer"}li.append(a,E("div","mut",`${i.source} · ${new Date(i.published).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`));ul.append(li)})
+}
 $("#bNews").onclick=async()=>{await loadNews();newsView();$("#dNews").showModal()};
 
 /* ===== Relatório PDF / WhatsApp / e-mail ===== */
 const okMail=v=>/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
 function shortTxt(){const d=POINT.d,c=d.current;return`Previsão para ${POINT.name}: agora ${fmt(c.temperature_2m)}°C, ${wmo(c.weather_code)[0]}. Hoje ${fmt(d.daily.temperature_2m_min[0])}° a ${fmt(d.daily.temperature_2m_max[0])}°, chuva ${fmt(d.daily.precipitation_probability_max[0])}%.\nMapa ao vivo: ${location.origin}${location.pathname}#${POINT.lat.toFixed(3)},${POINT.lon.toFixed(3)},8`}
-function pdfFile(){if(!POINT||!POINT.d){$("#rErr").textContent="Escolha um local no mapa ou na busca antes.";return null}$("#rErr").textContent="";if(!window.jspdf){$("#rErr").textContent="A biblioteca de PDF não carregou.";return null}
+async function captureMapImage(){
+ const el=map.getContainer(),r=el.getBoundingClientRect(),scale=1.5,w=Math.max(600,Math.round(r.width*scale)),h=Math.max(320,Math.round(r.height*scale));
+ const c=document.createElement("canvas");c.width=w;c.height=h;const x=c.getContext("2d");
+ x.fillStyle=TH==="dark"?"#202938":"#e7edf4";x.fillRect(0,0,w,h);
+ const imgs=[...el.querySelectorAll(".leaflet-tile")];
+ await Promise.all(imgs.map(im=>im.complete?Promise.resolve():new Promise(res=>{im.onload=res;im.onerror=res;setTimeout(res,1800)})));
+ imgs.forEach(im=>{try{if(!im.naturalWidth)return;const q=im.getBoundingClientRect();x.drawImage(im,(q.left-r.left)*scale,(q.top-r.top)*scale,q.width*scale,q.height*scale)}catch(e){}});
+ // Sobrepõe os campos meteorológicos desenhados pelo próprio aplicativo.
+ [cv,cp].forEach(layer=>{try{x.drawImage(layer,0,0,w,h)}catch(e){}});
+ if(POINT){const p=map.latLngToContainerPoint([POINT.lat,POINT.lon]);x.beginPath();x.arc(p.x*scale,p.y*scale,8*scale,0,Math.PI*2);x.fillStyle="#f5b301";x.fill();x.lineWidth=3*scale;x.strokeStyle="#fff";x.stroke()}
+ x.fillStyle=TH==="dark"?"#fff":"#172033";x.font=`bold ${14*scale}px sans-serif`;x.fillText("MeteoMapa · "+POINT.name,12*scale,22*scale);
+ return c.toDataURL("image/jpeg",.82);
+}
+async function pdfFile(){if(!POINT||!POINT.d){$("#rErr").textContent="Escolha um local no mapa ou na busca antes.";return null}$("#rErr").textContent="";if(!window.jspdf){$("#rErr").textContent="A biblioteca de PDF não carregou.";return null}
  const d=new window.jspdf.jsPDF(),D=POINT.d,c=D.current;let y=18;const ln=(t,s=10,url)=>{d.setFontSize(s);d.splitTextToSize(t,182).forEach(l=>{if(y>282){d.addPage();y=18}if(url){d.setTextColor(20,90,200);d.textWithLink(l,14,y,{url});d.setTextColor(0)}else d.text(l,14,y);y+=s*.5+2.6})};
  ln("Relatorio meteorologico",16);ln(POINT.name+"  |  gerado em "+new Date().toLocaleString("pt-BR"),9);y+=3;
+ try{const mapShot=await captureMapImage();d.addImage(mapShot,"JPEG",14,y,182,82);y+=87}catch(e){ln("Mapa ilustrativo indisponível nesta geração.",8);y+=2}
  ln(`Agora: ${fmt(c.temperature_2m)} C (sensacao ${fmt(c.apparent_temperature)} C), ${wmo(c.weather_code)[0]}, vento ${fmt(c.wind_speed_10m)} km/h, umidade ${fmt(c.relative_humidity_2m)}%`,11);y+=3;ln("Proximos 7 dias",12);
  D.daily.time.forEach((t,i)=>ln(`${new Date(t+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit"})}   ${fmt(D.daily.temperature_2m_min[i])} / ${fmt(D.daily.temperature_2m_max[i])} C   chuva ${fmt(D.daily.precipitation_probability_max[i])}%   vento max ${fmt(D.daily.wind_speed_10m_max[i])} km/h   ${wmo(D.daily.weather_code[i])[0]}`,10));
  y+=4;ln("Abrir o mapa ao vivo neste local",11,`${location.origin}${location.pathname}#${POINT.lat.toFixed(3)},${POINT.lon.toFixed(3)},8`);
@@ -180,11 +251,11 @@ function pdfFile(){if(!POINT||!POINT.d){$("#rErr").textContent="Escolha um local
  return new File([d.output("blob")],"relatorio-tempo-"+new Date().toISOString().slice(0,10)+".pdf",{type:"application/pdf"})}
 function dlFile(f){const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
 $("#bRep").onclick=async()=>{await loadNews();$("#rErr").textContent="";$("#dRep").showModal()};
-$("#rPdf").onclick=()=>{const f=pdfFile();if(f)dlFile(f)};
-$("#rWa").onclick=async()=>{const f=pdfFile();if(!f)return;const t=shortTxt();
+$("#rPdf").onclick=async()=>{const f=await pdfFile();if(f)dlFile(f)};
+$("#rWa").onclick=async()=>{const f=await pdfFile();if(!f)return;const t=shortTxt();
  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:"Previsão do tempo",text:t});return}catch(e){if(e.name==="AbortError")return}}
  dlFile(f);window.open("https://wa.me/?text="+encodeURIComponent(t),"_blank","noopener");toast("PDF baixado. Anexe-o na conversa do WhatsApp.")};
-$("#rEm").onclick=()=>{const em=$("#rMail").value.trim();if(!okMail(em)){$("#rErr").textContent="Digite um e-mail válido.";return}const f=pdfFile();if(!f)return;dlFile(f);
+$("#rEm").onclick=async()=>{const em=$("#rMail").value.trim();if(!okMail(em)){$("#rErr").textContent="Digite um e-mail válido.";return}const f=await pdfFile();if(!f)return;dlFile(f);
  setTimeout(()=>{location.href=`mailto:${em}?subject=${encodeURIComponent("Previsão do tempo: "+POINT.name)}&body=${encodeURIComponent(shortTxt()+"\n\n(O PDF foi baixado: anexe o arquivo.)")}`},400)};
 
 /* ===== Início ===== */
